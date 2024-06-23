@@ -1,9 +1,11 @@
-import fitz
+import fitz # for extract_text_from_pdf
 import requests
-from flask import Flask, request, jsonify, abort
+from functions import Flask, request, jsonify, abort
 from flask_cors import CORS
-from dotenv import load_dotenv
+from dotenv import load_dotenv # for creating config.env and storing keys elsewhere
 load_dotenv('./config.env')
+import re # for json_from_string
+import json # for json_from_string
 from werkzeug.utils import secure_filename
 import os
 
@@ -34,6 +36,25 @@ def get_answer_from_chatgpt(question, context):
     )
     return response.json()['choices'][0]['message']['content']
 
+def json_from_string(string):
+    # Regex pattern to match a JSON object
+    json_pattern = r'\{(?:[^{}]|(?R))*\}'
+    
+    # Search for the JSON object in the string
+    match = re.search(json_pattern, string)
+    
+    if match:
+        json_str = match.group(0)
+        try:
+            # Parse the JSON object
+            json_obj = json.loads(json_str)
+            return json_obj
+        except json.JSONDecodeError:
+            raise ValueError("Found JSON object is not valid")
+    else:
+        raise ValueError("No JSON object found in the string")
+
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -54,4 +75,3 @@ def upload_file():
 
 if __name__ == '__main__':
     app.run(debug=True)  # Runs the application on the local development server
-
