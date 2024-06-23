@@ -1,26 +1,55 @@
-from flask import Flask, request, jsonify
+import fitz
+import requests
+from flask import Flask, request, jsonify, abort
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
+import os
 
 app = Flask(__name__)
-CORS(app)  # Enables CORS for all domains on all routes
+CORS(app)  # Enable CORS
+app.config['UPLOAD_FOLDER'] = '/path/to/the/uploads'  # Configure the upload folder
 
-@app.route('/process_notes', methods=['POST'])
-def process_notes():
-    if request.method == 'POST':
-        # Extract data from POST request
-        data = request.json
-        notes = data['notes']
-        
-        # Here you would typically call your function that handles the OpenAI API
-        processed_data = handle_notes_with_openai(notes)
+def extract_text_from_pdf(pdf_path):
+    doc = fitz.open(pdf_path)
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    return text
 
-        # Return a JSON response with the processed data
-        return jsonify(processed_data)
+def get_answer_from_chatgpt(question, context):
+    full_prompt = f"Question: {question}\n\nContext: {context}"
+    response = requests.post(
+        'https://api.openai.com/v1/chat/completions',
+        headers={
+            'Authorization': 'Bearer your_openai_api_key',  # Replace with your actual API key
+            'Content-Type': 'application/json',
+        },
+        json={
+            'model': 'gpt-4o',  # Update this with the correct model ID
+            'messages': [{"role": "system", "content": "You are a helpful assistant."},
+                         {"role": "user", "content": full_prompt}]
+        }
+    )
+    return response.json()['choices'][0]['message']['content']
 
-def handle_notes_with_openai(notes):
-    # Dummy function for processing notes
-    # Replace this with actual code to call the OpenAI API and process the notes
-    return {"summary": "This is a summary of the notes", "key_points": ["Point 1", "Point 2"]}
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return abort(400, description="No file part")
+    file = request.files['file']
+    if file.filename == '':
+        return abort(400, description="No selected file")
+    if file and file.filename.endswith('.pdf'):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+        context = extract_text_from_pdf(file_path)
+        # Example to show integration, adjust according to your needs
+        response = get_answer_from_chatgpt("What is the main topic?", context)
+        return jsonify({"response": response})
+    else:
+        return abort(400, description="Invalid file format")
 
 if __name__ == '__main__':
     app.run(debug=True)  # Runs the application on the local development server
+
