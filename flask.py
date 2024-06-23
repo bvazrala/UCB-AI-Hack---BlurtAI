@@ -2,6 +2,8 @@ import fitz
 import requests
 from flask import Flask, request, jsonify, abort
 from flask_cors import CORS
+from dotenv import load_dotenv
+load_dotenv('./config.env')
 from werkzeug.utils import secure_filename
 import os
 
@@ -21,7 +23,7 @@ def get_answer_from_chatgpt(question, context):
     response = requests.post(
         'https://api.openai.com/v1/chat/completions',
         headers={
-            'Authorization': 'Bearer your_openai_api_key',  # Replace with your actual API key
+            'Authorization': 'Bearer API_KEY',  # Replace with your actual API key
             'Content-Type': 'application/json',
         },
         json={
