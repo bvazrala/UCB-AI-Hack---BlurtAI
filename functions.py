@@ -9,10 +9,6 @@ import json # for json_from_string
 from werkzeug.utils import secure_filename
 import os
 
-app = Flask(__name__)
-CORS(app)  # Enable CORS
-app.config['UPLOAD_FOLDER'] = '/path/to/the/uploads'  # Configure the upload folder
-
 def extract_text_from_pdf(pdf_path):
     doc = fitz.open(pdf_path)
     text = ""
@@ -54,24 +50,3 @@ def json_from_string(string):
     else:
         raise ValueError("No JSON object found in the string")
 
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return abort(400, description="No file part")
-    file = request.files['file']
-    if file.filename == '':
-        return abort(400, description="No selected file")
-    if file and file.filename.endswith('.pdf'):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
-        context = extract_text_from_pdf(file_path)
-        # Example to show integration, adjust according to your needs
-        response = get_answer_from_chatgpt("What is the main topic?", context)
-        return jsonify({"response": response})
-    else:
-        return abort(400, description="Invalid file format")
-
-if __name__ == '__main__':
-    app.run(debug=True)  # Runs the application on the local development server
